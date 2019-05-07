@@ -1,4 +1,4 @@
-﻿#####################################################################################
+#####################################################################################
 #
 # Get-Parsed_Nessus.psm1
 # This function parses Nessus XMLs and updates global hashtable (Yeah ... I know)
@@ -14,7 +14,7 @@
 
 function Get-Parsed_Nessus {
     if ((get-pscallstack |select -last 2 |select -expa arguments -first 1) -match "debug"){ $debugpreference="continue"}
-    write-output "Welcome to the Nessus Parser ... $($file.name)"
+    write-output "W3lcome to the Nessus Parser ... $($file.name)"
     $xmldoc = new-object System.XML.XMLdocument
         
     # Some Nessus files have issues 
@@ -25,7 +25,7 @@ function Get-Parsed_Nessus {
         # Some house keeping to replace troublesome XML characters
         Copy-Item $file "$file.BAK"
         (Get-Content $file) | 
-        Foreach-Object {$_ -replace "&", "&amp;" -replace "'", "&apos;" -replace "–", " " -replace "(?<!\?xml.*)(?<=`".*?)`"(?=.*?`")", ""} |
+        Foreach-Object {$_ -replace "&", "&amp;" -replace "'", "&apos;" -replace "", " " -replace "(?<!\?xml.*)(?<=`".*?)`"(?=.*?`")", ""} |
         Set-Content $file
         [xml]$xmldoc = Get-Content $file -ReadCount 0
         #$xmldoc.Load($file)
@@ -49,21 +49,28 @@ function Get-Parsed_Nessus {
             $hostID = $reportHost.name
             $vCount = $reportHost.reportitem.count
             $vCount--
-                
+       
             # Ok now we got all the info we need to loop over the hosts and for each host loop the findings 
             $version = $reportHost.ReportItem[0].plugin_output | select-string Nessus | % {$_.line.split()[12]}
 
+            $hostProperties = $reportHost.HostProperties.tag 
+            $hostIP = $hostProperties | Where-Object {$_.Name -like 'host-ip'} 
+            $hostNAME = $hostProperties | Where-Object {$_.Name -like 'hostname'}
+            
+            $hostIP = $hostIP."#text"
+            $hostNAME = $hostNAME."#text"
+            if ($hostNAME -eq $null) { $hostNAME = "Unknown" }
+           # 
             foreach ($i in (0..$vCount)) {
-
                 # Lets update the report host
                 $reportItem = $reportHost.ReportItem[$i]
-                
+
                 # If this is general info move on
                 if ($reportItem."svc_name" -eq "general"){ continue }
 
-                # build the key ip - port       
+                # build the key ip - port - protocol      
                 $sb = New-Object System.Text.StringBuilder
-                $null = $sb.Append("$($hostID)-$($reportItem."port")")
+                $null = $sb.Append("$($hostID)-$($reportItem."port")-$($reportItem."protocol")")
                 $name = $sb.tostring().Trim()
 
                 # we need a unique Key to save our info ... im hashing the desciption value and using it
@@ -75,7 +82,8 @@ function Get-Parsed_Nessus {
                 $svc = ($reportItem."svc_name").trim("?")
 
                 $IssueKey.Add(($hName),(@{
-                    "ip"         = ($hostID)
+                    "host"       = ($hostNAME)
+                    "ip"         = ($hostIP)
                     "port"       = ($reportItem."port")
                     "protocol"   = ($reportItem."protocol")
                     "svc_name"   = ($svc.ToLower())

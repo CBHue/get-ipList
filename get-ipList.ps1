@@ -1,4 +1,4 @@
-﻿####################################################################################
+####################################################################################
 # 
 # get-iplist.ps1 
 # Parse XML output and create iplist in XLSX form 
@@ -67,27 +67,29 @@ function create-iplist {
     Foreach ($global:file in $Path) {
        if ($file -eq $null) {continue}
        # We need to figure out what kind of file it is and then call the associated parser.
-       $head = Get-Content –literalPath $file -totalcount 10
+       $head = Get-Content literalPath $file -totalcount 10
      
        # Loop thru the parsers to find what kind of file were loooking at
        $noMatch = 0
        $parsER.GetEnumerator() | Foreach-Object { 
-           if ( $head | select-string $_.value -quiet) {
-               $noMatch++
-               $end   = "Finished with the " + $_.key + " Parser ..."
-               $modR  = "Get-Parsed_" + $_.key
-               $modI  = ".\Modules\" + $modR + ".psm1"
+            if ( $head | select-string $_.value -quiet) {
+                $noMatch++
+                $end   = "Finished with the " + $_.key + " Parser ..."
+                $modR  = "Get-Parsed_" + $_.key
+                $modI  = ".\Modules\" + $modR + ".psm1"
 
-               # I should check to make sure the file is there ... maybe later
-               # Remove Mod first
-               Remove-Module $modR
-
-               Write-Debug "$modI"
-               Import-Module $modI
-               Invoke-Expression "$modR -Debug:$DebugPreference"
-               Write-Debug "$($sw.Elapsed) $end"
-               Remove-Module $modR
-           }           
+                # I should check to make sure the file is there ... maybe later
+                if ((Get-Module $modR)) {
+                    Write-Debug "Removing $modR"
+                    Remove-Module $modR
+                }
+               
+                Write-Debug "Importing $modI"
+                Import-Module $modI
+                Invoke-Expression "$modR -Debug:$DebugPreference"
+                Write-Debug "$($sw.Elapsed) $end"
+                Remove-Module $modR
+            }           
        }
         
        if ($noMatch -eq 0) { 
@@ -96,36 +98,23 @@ function create-iplist {
        } 
            
     } # End of All Files
-
     Write-Debug "$($sw.Elapsed) Finished with all files"
 
-    # Import the XLSX writer
-    Remove-Module Set-XLSX_Output
-    Import-Module .\Modules\Set-XLSX_Output.psm1 -DisableNameChecking
-    #Import-Module .\Modules\Set-XLSX_Output_ORIG.psm1 -DisableNameChecking
+    # Create the Output File ... Import current XLSX writer
+    if ((Get-Module "XLSX writer")) { Remove-Module Set-XLSX_Output }
 
-#    # Create the Output File
-#    Write-Debug  "$($sw.Elapsed) Create XLSX Document"
-#    Create-XLSX
-#    Write-Debug  "$($sw.Elapsed) Inserting XLSX Header"
-#    Insert-Header
+    Import-Module .\Modules\Set-XLSX_Output.psm1 -DisableNameChecking
+    Write-Debug  "$($sw.Elapsed) Create XLSX Document"
+    Create-XLSX
+    Write-Debug  "$($sw.Elapsed) Inserting XLSX Header"
+    Insert-Header
     Write-Debug  "$($sw.Elapsed) Inserting XLSX Body"
     Insert-Body
-#    Write-Debug  "$($sw.Elapsed) Formatting XLSX"
-#    Format-XLSX
-#    Write-output "$($sw.Elapsed) This is the END ..."
-#    Remove-Module Set-XLSX_Output 
-#    #Remove-Module Set-XLSX_Output_ORIG
-
+    Write-Debug  "$($sw.Elapsed) Formatting XLSX"
+    Format-XLSX
+    Write-output "$($sw.Elapsed) This is the END ..."
+    Remove-Module Set-XLSX_Output 
 } # End of Function
-
-function Hash($t) {
-    $someString = "Hello World!"
-    $md5 = new-object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
-    $utf8 = new-object -TypeName System.Text.UTF8Encoding
-    $hash = [System.BitConverter]::ToString($md5.ComputeHash($utf8.GetBytes($t)))
-    return $hash;
-}
 
 # Build hashtable for splatting the parameters:
 $ParamArgs = @{ Path = $Path ; OutputDelimiter = $OutputDelimiter } 

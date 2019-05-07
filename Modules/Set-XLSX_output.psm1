@@ -18,7 +18,7 @@ function Create-XLSX {
     $xlsx.SheetsInNewWorkbook = 1
     $wBook=$xlsx.Workbooks.Add()
     $script:wSheet=$wBook.ActiveSheet
-    $wSheet.Name = “Security POAM Matrix”
+    $wSheet.Name = "IP List"
     $script:cells=$wSheet.Cells
 }
 
@@ -29,9 +29,9 @@ function Insert-Header {
     
     # insert and format headers
     $h = 0
-    $hSize = "20", "10", "10", "20"
-    $a = @(("IP Address", "Port", "Protocol", "Service Name"))
-    $range = $wSheet.Range("A$row" , "M$row")    
+    $hSize = "20", "20", "10", "10", "20"
+    $a = @(("Hostname", "IP Address", "Port", "Protocol", "Service Name"))
+    $range = $wSheet.Range("A$row" , "E$row")    
     $range.Value2 = $a
     
     ($hSize) | foreach {
@@ -49,32 +49,17 @@ function Insert-Body {
     foreach ($x in $IssueKey.GetEnumerator()| sort -Property name){
         Write-Debug "+ $($sw.Elapsed) Risk $($xy): inserting $($loopER.count) rows ..."
         #    # Create the array
-        $array = New-Object 'object[,]' 1,4
-        $array[0,0]  = $IssueKey[$x.key]."ip"
-        $array[0,1]  = $IssueKey[$x.key]."port"
-        $array[0,2]  = $IssueKey[$x.key]."proto"
-        $array[0,3]  = $IssueKey[$x.key]."svc_name"
+        $array = New-Object 'object[,]' 1,5
+        $array[0,0]  = $IssueKey[$x.key]."host"
+        $array[0,1]  = $IssueKey[$x.key]."ip"
+        $array[0,2]  = $IssueKey[$x.key]."port"
+        $array[0,3]  = $IssueKey[$x.key]."protocol"
+        $array[0,4]  = $IssueKey[$x.key]."svc_name"
 
         $row++
-        $range = $wSheet.Range("A$row" , "M$row")
+        $range = $wSheet.Range("A$row" , "E$row")
         #    # This is the bottle neck ... maybe convert from CSV is faster ...    
         $range.Value2 = $array
-            
-        #    $t = $IssueThreat[$x].tostring()
-        #    $c = $cells.item($row,2).interior
-
-        #    switch -regex  ($t){ 
-        #        Critical { $cells.item($row,2).font.colorIndex=2
-        #                   $c.colorIndex=9;  break } 
-        #        High     { $c.colorIndex=3;  break } 
-        #        Medium   { $c.colorIndex=45; break }  
-        #        Low      { $c.colorIndex=6;  break } 
-        #        FAILED   { $c.colorIndex=3;  break }  
-        #        Error    { $c.colorIndex=3;  break }  
-        #        PASSED   { $c.colorIndex=4;  break } 
-        #        default  { $c.colorIndex=40        } 
-        #    }
-        #}
     }
 }
     
@@ -92,8 +77,8 @@ function Format-XLSX {
     $page.rowHeight = 20
     
     # Format Body
-    $wSheet.Range("B2","B$rows").font.bold=$True
-    $wSheet.Range("C2","C$rows").font.bold=$True
+    $wSheet.Range("A2","A$rows").font.bold=$True
+    #$wSheet.Range("C2","C$rows").font.bold=$True
     
     # Format Header
     $head = $wSheet.Cells.Item(1,1).EntireRow
